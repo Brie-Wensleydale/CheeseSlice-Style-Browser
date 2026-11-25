@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Style Atlas ✦ Brie Wizard</title>
+<link rel="stylesheet" href="style.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>✦</text></svg>">
+</head>
+<body>
+
+<header class="topbar">
+  <div class="brand">✦ <b>Style Atlas</b></div>
+
+  <div class="controls">
+    <select id="modelFilter" class="ctl" title="Model"></select>
+    <select id="charFilter" class="ctl" title="Character"></select>
+
+    <div class="viewtoggle" id="viewToggle" title="Which render to show in the grid">
+      <button data-view="char" class="active">char</button>
+    </div>
+
+    <div class="viewtoggle sizes" id="sizeToggle" title="Thumbnail size">
+      <button data-size="s" title="small">S</button>
+      <button data-size="m" class="active" title="medium">M</button>
+      <button data-size="l" title="large">L</button>
+    </div>
+
+    <select id="ratingFilter" class="ctl" title="Filter by rating">
+      <option value="">any rating</option>
+      <option value="1">★ 1+</option>
+      <option value="2">★ 2+</option>
+      <option value="3">★ 3+</option>
+      <option value="4">★ 4+</option>
+      <option value="5">★ 5</option>
+      <option value="unrated">unrated</option>
+    </select>
+
+    <select id="sortSel" class="ctl" title="Sort">
+      <option value="index">library order</option>
+      <option value="az">a–z</option>
+      <option value="rating">rating</option>
+      <option value="badness">weakest first</option>
+    </select>
+
+    <select id="bandFilter" class="ctl" title="Filter by audit verdict">
+      <option value="">all verdicts</option>
+      <option value="issues">flagged (dead / weak / mismatch)</option>
+      <option value="dead">dead only</option>
+      <option value="subtle">subtle only</option>
+      <option value="label-mismatch">label mismatch</option>
+    </select>
+
+    <input id="search" class="ctl search" type="search" placeholder="search styles…" autocomplete="off">
+    <span class="count" id="countBadge"></span>
+  </div>
+
+  <a id="dlWorkflow" class="ctl dlflow" href="workflow_atlas.json" download="style_atlas_workflow.json"
+     title="Download the ComfyUI workflow used for these renders (API JSON)">
+    <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="M7 11l5 5 5-5"/><path d="M4 20h16"/></svg>
+    Krea 2 Workflow
+  </a>
+
+  <button id="dlRatings" class="ctl dlflow2" title="Download your ratings and tags as JSON (shift-click to import a previous export)">
+    <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="M7 11l5 5 5-5"/><path d="M4 20h16"/></svg>
+    ratings
+  </button>
+  <input type="file" id="upRatings" accept=".json,application/json" hidden>
+</header>
+
+<div class="chips" id="sectionChips"></div>
+<div class="chips tagchips" id="tagChips"></div>
+
+<div class="comparebar" id="compareBar" hidden>
+  <span id="compareLabel">compare: —</span>
+  <button id="compareOpen" disabled>A/B slider ✦</button>
+  <button id="compareSideOpen" disabled>side by side ▤</button>
+  <button id="compareClear">clear</button>
+</div>
+
+<main id="grid" class="grid"></main>
+
+<div class="empty" id="empty" hidden>✦ no styles match</div>
+
+<!-- LIGHTBOX -->
+<div class="modal" id="lightbox" hidden>
+  <div class="lb-backdrop" id="lbBackdrop"></div>
+  <div class="lb-panel">
+    <button class="lb-close" id="lbClose">✕</button>
+    <button class="lb-nav lb-prev" id="lbPrev">‹</button>
+    <button class="lb-nav lb-next" id="lbNext">›</button>
+
+    <div class="lb-body">
+      <div class="lb-stage">
+        <div class="lb-viewtabs" id="lbViewTabs"></div>
+        <div class="lb-imgwrap"><img id="lbImg" alt=""><span id="lbImgIdx"></span></div>
+        <div class="lb-imgnav" id="lbImgNav" hidden>
+          <button id="lbImgPrev">‹ prev</button>
+          <button id="lbImgNext">next ›</button>
+        </div>
+      </div>
+
+      <div class="lb-side">
+        <div class="lb-titlerow">
+          <h2 id="lbTitle"></h2>
+          <div class="copyrow">
+            <button class="cbtn grey" id="lbCopyFull" title="Copy full prompt (base prompt + style text)">
+              <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M6 15H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v1"/></svg>
+            </button>
+            <button class="cbtn purple" id="lbCopyStyle" title="Copy style prompt only">
+              <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M6 15H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v1"/></svg>
+            </button>
+          </div>
+        </div>
+        <p class="lb-meta" id="lbMeta"></p>
+
+        <div class="lb-compact">
+          <div class="lb-row">
+            <div class="stars" id="lbStars">
+              <button data-r="1">★</button><button data-r="2">★</button><button data-r="3">★</button><button data-r="4">★</button><button data-r="5">★</button>
+              <button class="clear" id="lbRateClear" title="clear">✕</button>
+            </div>
+          </div>
+          <div class="lb-row">
+            <div class="taglist" id="lbTags"></div>
+            <input id="lbTagInput" class="taginput" placeholder="+ tag" autocomplete="off">
+          </div>
+        </div>
+
+        <div class="lb-actions">
+          <button id="lbSetA">set A</button>
+          <button id="lbSetB">set B</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- COMPARE -->
+<div class="modal" id="compareModal" hidden>
+  <div class="lb-backdrop" id="cmBackdrop"></div>
+  <div class="cm-panel">
+    <button class="lb-close" id="cmClose">✕</button>
+    <div class="cm-head">
+      <select id="cmA" title="A"></select>
+      <span class="cm-vs">✦ A/B</span>
+      <select id="cmB" title="B"></select>
+      <div class="cm-modes">
+        <button id="cmSliderMode" class="active" title="overlay: drag the handle to reveal B underneath A">⇄ slider</button>
+        <button id="cmSideBySide" title="both images side by side">▤ side by side</button>
+      </div>
+    </div>
+    <div class="cm-stage" id="cmStage">
+      <div class="cm-split" id="cmSplit">
+        <img class="cm-img cm-img-top" id="cmImgTop" alt="">
+        <img class="cm-img cm-img-bottom" id="cmImgBottom" alt="">
+        <div class="cm-divider" id="cmDivider"><span>⇄</span></div>
+        <span class="cm-tag cm-tag-a" id="cmTagA"></span>
+        <span class="cm-tag cm-tag-b" id="cmTagB"></span>
+      </div>
+    </div>
+    <p class="cm-hint">slider mode: left of the handle = <b>A</b>, right = <b>B</b> — drag the handle or click anywhere on the image</p>
+  </div>
+</div>
+
+<div class="toast" id="toast" hidden></div>
+
+<script>window.STATIC = true;</script>
+<script src="app.js"></script>
+</body>
+</html>
